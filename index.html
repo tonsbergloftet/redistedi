@@ -447,9 +447,146 @@ textarea#pasteArea::placeholder { color: var(--ink-dim); }
 }
 .toast.show { transform: translateX(-50%) translateY(0); }
 
-/* Mobile */
-@media (max-width: 680px) {
-  .panels { grid-template-columns: 1fr; }
+/* ── KOMMENTARER ── */
+.field-row-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.field-row-header .field-tag { flex: 1; }
+
+.comment-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  color: var(--ink-dim);
+  transition: background 0.1s, color 0.1s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.comment-btn:hover { background: var(--navy-dim); color: var(--navy); }
+.comment-btn.has-comments { color: var(--amber); font-weight: 700; }
+
+.comments-panel {
+  margin: 6px 0 4px;
+  display: none;
+}
+.comments-panel.open { display: block; }
+
+.comment-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.comment-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.comment-author {
+  font-weight: 700;
+  color: var(--navy);
+  font-size: 11px;
+}
+.comment-date {
+  font-size: 10px;
+  color: var(--ink-dim);
+}
+.comment-text {
+  color: var(--ink-mid);
+  line-height: 1.55;
+  margin-bottom: 6px;
+  font-weight: 300;
+}
+.comment-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.comment-action-btn {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  color: var(--ink-dim);
+  cursor: pointer;
+  font-family: var(--sans);
+  transition: all 0.12s;
+}
+.comment-action-btn:hover { border-color: var(--navy); color: var(--navy); }
+.comment-action-btn.delete { color: #923c3d; }
+.comment-action-btn.delete:hover { border-color: #923c3d; background: #f3e4e4; }
+
+/* Svar-innrykk */
+.comment-replies { margin-top: 6px; padding-left: 10px; border-left: 2px solid var(--border); }
+.reply-item {
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(1,57,82,0.05);
+}
+.reply-item:last-child { border-bottom: none; }
+.reply-meta { display: flex; justify-content: space-between; margin-bottom: 2px; }
+.reply-author { font-size: 10px; font-weight: 700; color: var(--navy); }
+.reply-date { font-size: 10px; color: var(--ink-dim); }
+.reply-text { font-size: 11px; color: var(--ink-mid); line-height: 1.5; font-weight: 300; }
+.reply-delete {
+  font-size: 9px; color: var(--ink-dim); background: none;
+  border: none; cursor: pointer; padding: 0; margin-top: 2px;
+  font-family: var(--sans);
+}
+.reply-delete:hover { color: #923c3d; }
+
+/* Ny kommentar / svar-skjema */
+.comment-form {
+  margin-top: 6px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.comment-form input,
+.comment-form textarea {
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 12px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 4px 0;
+  margin-bottom: 6px;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 300;
+}
+.comment-form input::placeholder,
+.comment-form textarea::placeholder { color: var(--ink-dim); }
+.comment-form input:focus,
+.comment-form textarea:focus { border-bottom-color: var(--navy); }
+.comment-form textarea { resize: none; min-height: 48px; line-height: 1.5; }
+.comment-form-btns { display: flex; gap: 6px; justify-content: flex-end; }
+.cf-cancel {
+  font-size: 11px; font-weight: 600; padding: 4px 10px;
+  border-radius: 20px; border: 1px solid var(--border);
+  background: none; color: var(--ink-dim);
+  cursor: pointer; font-family: var(--sans);
+}
+.cf-submit {
+  font-size: 11px; font-weight: 600; padding: 4px 10px;
+  border-radius: 20px; border: none;
+  background: var(--navy); color: white;
+  cursor: pointer; font-family: var(--sans);
+  transition: opacity 0.12s;
+}
+.cf-submit:hover { opacity: 0.85; }
+.cf-submit:disabled { opacity: 0.3; cursor: default; }
   .panel-right { display: none; }
   .topbar-title { display: none; }
 }
@@ -741,11 +878,29 @@ function buildFieldRow(field) {
   row.id = 'row-' + field.id;
   if (changedIds.has(field.id)) row.classList.add('active');
 
+  // Header-rad: tag + kommentarknapp
+  const headerDiv = document.createElement('div');
+  headerDiv.className = 'field-row-header';
+
   const tag = document.createElement('div');
   tag.className = 'field-tag ' + field.tag;
   tag.textContent = field.tag.toUpperCase();
 
-  // Bruk textarea for lange tekster, input for korte
+  const commentCount = getCommentsForField(field.id).length;
+  const commentBtn = document.createElement('button');
+  commentBtn.className = 'comment-btn' + (commentCount > 0 ? ' has-comments' : '');
+  commentBtn.id = 'commentBtn-' + field.id;
+  commentBtn.textContent = commentCount > 0 ? `💬 ${commentCount}` : '💬';
+  commentBtn.title = 'Kommentarer';
+  commentBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    toggleComments(field.id);
+  });
+
+  headerDiv.appendChild(tag);
+  headerDiv.appendChild(commentBtn);
+
+  // Input
   const isLong = field.originalText.length > 60;
   const input = document.createElement(isLong ? 'textarea' : 'input');
   input.className = 'field-input' + (changedIds.has(field.id) ? ' changed' : '');
@@ -762,8 +917,14 @@ function buildFieldRow(field) {
   input.addEventListener('focus', () => row.classList.add('active'));
   input.addEventListener('blur', () => { if (!changedIds.has(field.id)) row.classList.remove('active'); });
 
-  row.appendChild(tag);
+  // Kommentar-panel
+  const commentsPanel = document.createElement('div');
+  commentsPanel.className = 'comments-panel';
+  commentsPanel.id = 'comments-' + field.id;
+
+  row.appendChild(headerDiv);
   row.appendChild(input);
+  row.appendChild(commentsPanel);
   return row;
 }
 
@@ -833,8 +994,13 @@ function filterFields(val) {
 function updateStats() {
   const total = fields.length;
   const changed = changedIds.size;
+  const commentCount = domDoc ? getAllCommentCount() : 0;
   document.getElementById('statsTotal').textContent = `${total} felt`;
-  document.getElementById('statsChanged').textContent = changed > 0 ? `${changed} endret` : '';
+  const parts = [];
+  if (changed > 0) parts.push(`${changed} endret`);
+  if (commentCount > 0) parts.push(`${commentCount} 💬`);
+  const changedEl = document.getElementById('statsChanged');
+  changedEl.textContent = parts.join(' · ');
 }
 
 // ── LAST NED ──
@@ -954,40 +1120,260 @@ function togglePreview() {
     document.getElementById('preview').style.pointerEvents = '';
   });
 })();
-(function() {
-  const resizer = document.getElementById('resizer');
-  const panelLeft = document.getElementById('panelLeft');
-  let startX, startWidth, dragging = false;
 
-  resizer.addEventListener('mousedown', e => {
-    dragging = true;
-    startX = e.clientX;
-    startWidth = panelLeft.offsetWidth;
-    resizer.classList.add('dragging');
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-    // Hindre iframe fra å stjele musehendelser
-    document.getElementById('preview').style.pointerEvents = 'none';
-  });
+// ── KOMMENTARER ──
+// Format: <!-- COMMENT:{"id":"c1","fieldId":"f3","author":"Kari","text":"...","date":"2026-08-20","replies":[]} -->
+// Lagres rett før det tilhørende elementet i domDoc
 
-  document.addEventListener('mousemove', e => {
-    if (!dragging) return;
-    const delta = e.clientX - startX;
-    const newWidth = Math.min(Math.max(startWidth + delta, 200), window.innerWidth * 0.7);
-    panelLeft.style.width = newWidth + 'px';
-  });
+const COMMENT_RE = /<!--\s*COMMENT:(\{.*?\})\s*-->/gs;
 
-  document.addEventListener('mouseup', () => {
-    if (!dragging) return;
-    dragging = false;
-    resizer.classList.remove('dragging');
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
-    document.getElementById('preview').style.pointerEvents = '';
+function parseComments() {
+  const comments = {};
+  const html = domDoc.documentElement.outerHTML;
+  let m;
+  COMMENT_RE.lastIndex = 0;
+  while ((m = COMMENT_RE.exec(html)) !== null) {
+    try {
+      const c = JSON.parse(m[1]);
+      if (!comments[c.fieldId]) comments[c.fieldId] = [];
+      comments[c.fieldId].push(c);
+    } catch(e) {}
+  }
+  return comments;
+}
+
+function saveComment(fieldId, author, text) {
+  const field = fields.find(f => f.id === fieldId);
+  if (!field) return;
+  const id = 'c' + Date.now();
+  const date = new Date().toLocaleDateString('no-NO', { day: 'numeric', month: 'short' });
+  const comment = { id, fieldId, author, text, date, replies: [] };
+  const commentStr = `<!-- COMMENT:${JSON.stringify(comment)} -->`;
+  // Sett inn kommentarnode rett før elementet i domDoc
+  const commentNode = domDoc.createComment(` COMMENT:${JSON.stringify(comment)} `);
+  field.el.parentNode.insertBefore(commentNode, field.el);
+  schedulePreview();
+  return id;
+}
+
+function saveReply(fieldId, commentId, author, text) {
+  const date = new Date().toLocaleDateString('no-NO', { day: 'numeric', month: 'short' });
+  // Finn kommentar-noden i domDoc og oppdater JSON
+  updateCommentNode(commentId, c => {
+    c.replies.push({ id: 'r' + Date.now(), author, text, date });
+    return c;
   });
-})();
+  schedulePreview();
+}
+
+function deleteComment(commentId) {
+  // Finn og fjern kommentar-noden fra domDoc
+  findAndRemoveCommentNode(commentId);
+  schedulePreview();
+}
+
+function deleteReply(commentId, replyId) {
+  updateCommentNode(commentId, c => {
+    c.replies = c.replies.filter(r => r.id !== replyId);
+    return c;
+  });
+  schedulePreview();
+}
+
+function updateCommentNode(commentId, fn) {
+  const walker = domDoc.createTreeWalker(domDoc.documentElement, NodeFilter.SHOW_COMMENT);
+  let node;
+  while ((node = walker.nextNode())) {
+    const raw = node.nodeValue;
+    if (raw.trim().startsWith('COMMENT:')) {
+      try {
+        const c = JSON.parse(raw.trim().slice(8));
+        if (c.id === commentId) {
+          const updated = fn(c);
+          node.nodeValue = ` COMMENT:${JSON.stringify(updated)} `;
+          return;
+        }
+      } catch(e) {}
+    }
+  }
+}
+
+function findAndRemoveCommentNode(commentId) {
+  const walker = domDoc.createTreeWalker(domDoc.documentElement, NodeFilter.SHOW_COMMENT);
+  let node;
+  while ((node = walker.nextNode())) {
+    const raw = node.nodeValue;
+    if (raw.trim().startsWith('COMMENT:')) {
+      try {
+        const c = JSON.parse(raw.trim().slice(8));
+        if (c.id === commentId) {
+          node.parentNode.removeChild(node);
+          return;
+        }
+      } catch(e) {}
+    }
+  }
+}
+
+function getCommentsForField(fieldId) {
+  const result = [];
+  const walker = domDoc.createTreeWalker(domDoc.documentElement, NodeFilter.SHOW_COMMENT);
+  let node;
+  while ((node = walker.nextNode())) {
+    const raw = node.nodeValue;
+    if (raw.trim().startsWith('COMMENT:')) {
+      try {
+        const c = JSON.parse(raw.trim().slice(8));
+        if (c.fieldId === fieldId) result.push(c);
+      } catch(e) {}
+    }
+  }
+  return result;
+}
+
+function getAllCommentCount() {
+  let count = 0;
+  const walker = domDoc.createTreeWalker(domDoc.documentElement, NodeFilter.SHOW_COMMENT);
+  let node;
+  while ((node = walker.nextNode())) {
+    if (node.nodeValue.trim().startsWith('COMMENT:')) count++;
+  }
+  return count;
+}
+
+// ── RENDER KOMMENTARER PÅ ET FELT ──
+function renderComments(fieldId, container) {
+  container.innerHTML = '';
+  const comments = getCommentsForField(fieldId);
+  if (comments.length === 0) return;
+
+  comments.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'comment-item';
+
+    // Svar-HTML
+    const repliesHtml = c.replies.length > 0 ? `
+      <div class="comment-replies">
+        ${c.replies.map(r => `
+          <div class="reply-item">
+            <div class="reply-meta">
+              <span class="reply-author">${escHtml(r.author)}</span>
+              <span class="reply-date">${escHtml(r.date)}</span>
+            </div>
+            <div class="reply-text">${escHtml(r.text)}</div>
+            <button class="reply-delete" onclick="handleDeleteReply('${fieldId}','${c.id}','${r.id}')">Slett svar</button>
+          </div>
+        `).join('')}
+      </div>` : '';
+
+    item.innerHTML = `
+      <div class="comment-meta">
+        <span class="comment-author">${escHtml(c.author)}</span>
+        <span class="comment-date">${escHtml(c.date)}</span>
+      </div>
+      <div class="comment-text">${escHtml(c.text)}</div>
+      ${repliesHtml}
+      <div class="comment-actions">
+        <button class="comment-action-btn" onclick="showReplyForm('${fieldId}','${c.id}',this)">↩ Svar</button>
+        <button class="comment-action-btn delete" onclick="handleDeleteComment('${fieldId}','${c.id}')">Slett</button>
+      </div>
+      <div class="reply-form-placeholder"></div>
+    `;
+    container.appendChild(item);
+  });
+}
+
+function showReplyForm(fieldId, commentId, btn) {
+  // Fjern eksisterende reply-skjema
+  document.querySelectorAll('.inline-reply-form').forEach(f => f.remove());
+  const placeholder = btn.closest('.comment-item').querySelector('.reply-form-placeholder');
+  const form = document.createElement('div');
+  form.className = 'comment-form inline-reply-form';
+  form.style.marginTop = '8px';
+  form.innerHTML = `
+    <input type="text" placeholder="Ditt navn" id="replyAuthor-${commentId}" maxlength="40">
+    <textarea placeholder="Skriv svar..." id="replyText-${commentId}" rows="2"></textarea>
+    <div class="comment-form-btns">
+      <button class="cf-cancel" onclick="this.closest('.inline-reply-form').remove()">Avbryt</button>
+      <button class="cf-submit" onclick="handleSaveReply('${fieldId}','${commentId}')">Svar</button>
+    </div>
+  `;
+  placeholder.appendChild(form);
+}
+
+function showCommentForm(fieldId, container) {
+  // Fjern eksisterende
+  container.querySelectorAll('.comment-form').forEach(f => f.remove());
+  const form = document.createElement('div');
+  form.className = 'comment-form';
+  form.innerHTML = `
+    <input type="text" placeholder="Ditt navn" id="newCommentAuthor-${fieldId}" maxlength="40">
+    <textarea placeholder="Skriv kommentar..." id="newCommentText-${fieldId}" rows="2"></textarea>
+    <div class="comment-form-btns">
+      <button class="cf-cancel" onclick="this.closest('.comment-form').remove()">Avbryt</button>
+      <button class="cf-submit" onclick="handleSaveComment('${fieldId}')">Lagre</button>
+    </div>
+  `;
+  container.appendChild(form);
+  document.getElementById(`newCommentAuthor-${fieldId}`)?.focus();
+}
+
+function handleSaveComment(fieldId) {
+  const author = document.getElementById(`newCommentAuthor-${fieldId}`)?.value.trim();
+  const text = document.getElementById(`newCommentText-${fieldId}`)?.value.trim();
+  if (!author || !text) return;
+  saveComment(fieldId, author, text);
+  refreshFieldComments(fieldId);
+  updateStats();
+}
+
+function handleSaveReply(fieldId, commentId) {
+  const author = document.getElementById(`replyAuthor-${commentId}`)?.value.trim();
+  const text = document.getElementById(`replyText-${commentId}`)?.value.trim();
+  if (!author || !text) return;
+  saveReply(fieldId, commentId, author, text);
+  refreshFieldComments(fieldId);
+}
+
+function handleDeleteComment(fieldId, commentId) {
+  deleteComment(commentId);
+  refreshFieldComments(fieldId);
+  updateStats();
+}
+
+function handleDeleteReply(fieldId, commentId, replyId) {
+  deleteReply(commentId, replyId);
+  refreshFieldComments(fieldId);
+}
+
+function refreshFieldComments(fieldId) {
+  const panel = document.getElementById(`comments-${fieldId}`);
+  const btn = document.getElementById(`commentBtn-${fieldId}`);
+  if (panel) {
+    renderComments(fieldId, panel);
+    const count = getCommentsForField(fieldId).length;
+    if (btn) {
+      btn.textContent = count > 0 ? `💬 ${count}` : '💬';
+      btn.classList.toggle('has-comments', count > 0);
+    }
+  }
+}
+
+function toggleComments(fieldId) {
+  const panel = document.getElementById(`comments-${fieldId}`);
+  if (!panel) return;
+  const isOpen = panel.classList.contains('open');
+  if (isOpen) {
+    panel.classList.remove('open');
+  } else {
+    panel.classList.add('open');
+    renderComments(fieldId, panel);
+    showCommentForm(fieldId, panel);
+  }
+}
+
 function escHtml(str) {
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 </script>
 </body>
