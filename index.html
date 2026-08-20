@@ -176,11 +176,22 @@ textarea#pasteArea::placeholder { color: var(--ink-dim); }
 
 /* Panels */
 .panels {
-  display: grid;
-  grid-template-columns: 340px 1fr;
+  display: flex;
   flex: 1;
   overflow: hidden;
 }
+
+/* Resizer */
+.resizer {
+  width: 5px;
+  background: var(--border);
+  cursor: col-resize;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  position: relative;
+  z-index: 10;
+}
+.resizer:hover, .resizer.dragging { background: var(--navy); }
 
 /* Left panel */
 .panel-left {
@@ -189,6 +200,19 @@ textarea#pasteArea::placeholder { color: var(--ink-dim); }
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  width: 340px;
+  min-width: 200px;
+  max-width: 70vw;
+  flex-shrink: 0;
+}
+
+/* Preview-modus */
+.panels.preview-mode .panel-left,
+.panels.preview-mode .resizer { display: none; }
+.panels.preview-mode .panel-right { flex: 1; }
+.topbar-btn.active {
+  background: rgba(255,255,255,0.25);
+  border-color: rgba(255,255,255,0.5);
 }
 
 .panel-search {
@@ -341,6 +365,7 @@ textarea#pasteArea::placeholder { color: var(--ink-dim); }
   position: relative;
   overflow: hidden;
   background: #e8edf0;
+  flex: 1;
 }
 
 .preview-label {
@@ -460,13 +485,14 @@ textarea#pasteArea::placeholder { color: var(--ink-dim); }
       <span class="topbar-title">Rediger HTML</span>
     </div>
     <div class="topbar-right">
+      <button class="topbar-btn" id="previewToggleBtn" onclick="togglePreview()">⛶ Forhåndsvisning</button>
       <button class="topbar-btn" onclick="downloadHtml()">↓ Last ned</button>
     </div>
   </div>
 
-  <div class="panels">
+  <div class="panels" id="panels">
     <!-- Venstre panel -->
-    <div class="panel-left">
+    <div class="panel-left" id="panelLeft">
       <div class="panel-search">
         <input type="text" id="searchInput" placeholder="Søk i tekst..." oninput="filterFields(this.value)">
       </div>
@@ -477,9 +503,12 @@ textarea#pasteArea::placeholder { color: var(--ink-dim); }
       </div>
     </div>
 
+    <!-- Resizer -->
+    <div class="resizer" id="resizer"></div>
+
     <!-- Høyre panel -->
     <div class="panel-right">
-      <div class="preview-label">Forhåndsvisning</div>
+      <div class="preview-label" id="previewLabel">Forhåndsvisning</div>
       <iframe id="preview" sandbox="allow-scripts allow-same-origin" title="Forhåndsvisning"></iframe>
     </div>
   </div>
@@ -877,7 +906,86 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
+// ── PREVIEW TOGGLE ──
+let previewMode = false;
+
+function togglePreview() {
+  previewMode = !previewMode;
+  const panels = document.getElementById('panels');
+  const btn = document.getElementById('previewToggleBtn');
+  const label = document.getElementById('previewLabel');
+  panels.classList.toggle('preview-mode', previewMode);
+  btn.classList.toggle('active', previewMode);
+  btn.textContent = previewMode ? '✕ Lukk fullskjerm' : '⛶ Forhåndsvisning';
+  if (label) label.style.display = previewMode ? 'none' : '';
+}
+
 // ── UTILS ──
+
+// ── RESIZER ──
+(function() {
+  const resizer = document.getElementById('resizer');
+  const panelLeft = document.getElementById('panelLeft');
+  let startX, startWidth, dragging = false;
+
+  resizer.addEventListener('mousedown', e => {
+    dragging = true;
+    startX = e.clientX;
+    startWidth = panelLeft.offsetWidth;
+    resizer.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.getElementById('preview').style.pointerEvents = 'none';
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const delta = e.clientX - startX;
+    const newWidth = Math.min(Math.max(startWidth + delta, 200), window.innerWidth * 0.7);
+    panelLeft.style.width = newWidth + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    resizer.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    document.getElementById('preview').style.pointerEvents = '';
+  });
+})();
+(function() {
+  const resizer = document.getElementById('resizer');
+  const panelLeft = document.getElementById('panelLeft');
+  let startX, startWidth, dragging = false;
+
+  resizer.addEventListener('mousedown', e => {
+    dragging = true;
+    startX = e.clientX;
+    startWidth = panelLeft.offsetWidth;
+    resizer.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    // Hindre iframe fra å stjele musehendelser
+    document.getElementById('preview').style.pointerEvents = 'none';
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const delta = e.clientX - startX;
+    const newWidth = Math.min(Math.max(startWidth + delta, 200), window.innerWidth * 0.7);
+    panelLeft.style.width = newWidth + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    resizer.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    document.getElementById('preview').style.pointerEvents = '';
+  });
+})();
 function escHtml(str) {
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
