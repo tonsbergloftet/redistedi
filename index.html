@@ -719,8 +719,8 @@ function loadHtml(html, filename) {
     document.querySelector('.topbar-title').textContent = filename;
   }
 
-  // Sett preview
-  updatePreview();
+  // Sett preview etter at editor er i DOM
+  requestAnimationFrame(() => updatePreview());
 
   // beforeunload
   window.addEventListener('beforeunload', beforeUnloadHandler);
@@ -981,8 +981,21 @@ function schedulePreview() {
 }
 
 function updatePreview() {
-  currentHtml = '<!DOCTYPE html>\n' + domDoc.documentElement.outerHTML;
-  document.getElementById('preview').srcdoc = currentHtml;
+  try {
+    const serializer = new XMLSerializer();
+    const doctype = '<!DOCTYPE html>\n';
+    // outerHTML er mer pålitelig for HTML-dokumenter
+    const body = domDoc.documentElement.outerHTML;
+    currentHtml = doctype + body;
+  } catch(e) {
+    currentHtml = '<!DOCTYPE html>\n' + domDoc.documentElement.outerHTML;
+  }
+  const iframe = document.getElementById('preview');
+  // Reset srcdoc ved å fjerne og sette på nytt — tvinger reload
+  iframe.removeAttribute('srcdoc');
+  requestAnimationFrame(() => {
+    iframe.srcdoc = currentHtml;
+  });
 }
 
 // ── SØK ──
