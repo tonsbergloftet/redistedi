@@ -646,7 +646,7 @@ textarea#pasteArea::placeholder { color: var(--ink-dim); }
     <!-- Høyre panel -->
     <div class="panel-right">
       <div class="preview-label" id="previewLabel">Forhåndsvisning</div>
-      <iframe id="preview" sandbox="allow-scripts allow-same-origin allow-forms" title="Forhåndsvisning"></iframe>
+      <iframe id="preview" title="Forhåndsvisning"></iframe>
     </div>
   </div>
 </div>
@@ -985,14 +985,14 @@ function updatePreview() {
   const serialized = '<!DOCTYPE html>\n' + domDoc.documentElement.outerHTML;
   currentHtml = serialized;
   const iframe = document.getElementById('preview');
-  const prevUrl = iframe._blobUrl || null;
-  const blob = new Blob([serialized], { type: 'text/html; charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  iframe._blobUrl = url;
-  iframe.src = url;
-  // Rydd opp forrige blob-URL etter at ny er lastet
-  if (prevUrl) {
-    iframe.addEventListener('load', () => URL.revokeObjectURL(prevUrl), { once: true });
+  try {
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open();
+    doc.write(serialized);
+    doc.close();
+  } catch(e) {
+    // Fallback til srcdoc hvis document.write blokkeres
+    iframe.srcdoc = serialized;
   }
 }
 
