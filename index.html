@@ -646,7 +646,7 @@ textarea#pasteArea::placeholder { color: var(--ink-dim); }
     <!-- Høyre panel -->
     <div class="panel-right">
       <div class="preview-label" id="previewLabel">Forhåndsvisning</div>
-      <iframe id="preview" sandbox="allow-scripts allow-same-origin" title="Forhåndsvisning"></iframe>
+      <iframe id="preview" sandbox="allow-scripts allow-same-origin allow-forms" title="Forhåndsvisning"></iframe>
     </div>
   </div>
 </div>
@@ -981,21 +981,19 @@ function schedulePreview() {
 }
 
 function updatePreview() {
-  try {
-    const serializer = new XMLSerializer();
-    const doctype = '<!DOCTYPE html>\n';
-    // outerHTML er mer pålitelig for HTML-dokumenter
-    const body = domDoc.documentElement.outerHTML;
-    currentHtml = doctype + body;
-  } catch(e) {
-    currentHtml = '<!DOCTYPE html>\n' + domDoc.documentElement.outerHTML;
-  }
+  if (!domDoc) return;
+  const serialized = '<!DOCTYPE html>\n' + domDoc.documentElement.outerHTML;
+  currentHtml = serialized;
   const iframe = document.getElementById('preview');
-  // Reset srcdoc ved å fjerne og sette på nytt — tvinger reload
-  iframe.removeAttribute('srcdoc');
-  requestAnimationFrame(() => {
-    iframe.srcdoc = currentHtml;
-  });
+  const prevUrl = iframe._blobUrl || null;
+  const blob = new Blob([serialized], { type: 'text/html; charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  iframe._blobUrl = url;
+  iframe.src = url;
+  // Rydd opp forrige blob-URL etter at ny er lastet
+  if (prevUrl) {
+    iframe.addEventListener('load', () => URL.revokeObjectURL(prevUrl), { once: true });
+  }
 }
 
 // ── SØK ──
