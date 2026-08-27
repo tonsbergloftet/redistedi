@@ -1002,10 +1002,70 @@ function writeToIframe(iframe, html) {
     doc.open();
     doc.write(html);
     doc.close();
+    injectClickSync(doc);
   } catch(e) {
     console.error('writeToIframe feilet:', e);
   }
 }
+
+function injectClickSync(doc) {
+  try {
+    const tags = ['h1','h2','h3','h4','h5','h6','p','li','a','td','th','button','span','label','figcaption','caption','dt','dd','blockquote'];
+    const skip = ['script','style','noscript','code','pre','select','option','textarea'];
+    const s = doc.createElement('script');
+    s.textContent = `(function() {
+      const tags = ${JSON.stringify(tags)};
+      const skip = ${JSON.stringify(skip)};
+      let fieldIndex = 0;
+      doc.querySelectorAll(tags.join(',')).forEach(el => {
+        if (skip.some(t => el.closest(t))) return;
+        const directText = Array.from(el.childNodes)
+          .filter(n => n.nodeType === 3)
+          .map(n => n.textContent)
+          .join('').trim();
+        if (!directText) return;
+        const idx = fieldIndex++;
+        el.addEventListener('dblclick', function(e) {
+          e.stopPropagation();
+          window.parent.postMessage({ type: 'REDIGER_FIELD', index: idx }, '*');
+        });
+        el.style.cursor = 'default';
+        el.addEventListener('mouseenter', function() {
+          el.style.outline = '2px solid rgba(1,57,82,0.3)';
+          el.style.outlineOffset = '2px';
+        });
+        el.addEventListener('mouseleave', function() {
+          el.style.outline = '';
+          el.style.outlineOffset = '';
+        });
+      });
+    })();`.replace(/doc\./g, 'document.');
+    doc.body.appendChild(s);
+  } catch(e) {
+    // Ignorer feil i injeksjon — preview fungerer fortsatt
+  }
+}
+
+// Lyt på klikk fra iframe
+window.addEventListener('message', function(e) {
+  if (e.data?.type !== 'REDIGER_FIELD') return;
+  const idx = e.data.index;
+  const field = fields[idx];
+  if (!field) return;
+  const row = document.getElementById('row-' + field.id);
+  if (!row) return;
+  // Scroll til feltet i venstre panel
+  row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // Highlight
+  row.classList.add('active');
+  const input = row.querySelector('.field-input');
+  if (input) {
+    setTimeout(() => input.focus(), 300);
+  }
+  setTimeout(() => {
+    if (!changedIds.has(field.id)) row.classList.remove('active');
+  }, 2000);
+});
 
 // ── SØK ──
 function filterFields(val) {
