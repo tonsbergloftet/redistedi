@@ -178,6 +178,7 @@ textarea#pasteArea::placeholder { color: var(--ink-dim); }
 .panels {
   display: flex;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -366,6 +367,18 @@ textarea#pasteArea::placeholder { color: var(--ink-dim); }
   overflow: hidden;
   background: #e8edf0;
   flex: 1;
+  min-height: 0;
+}
+
+#preview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+  background: white;
 }
 
 .preview-label {
@@ -381,17 +394,6 @@ textarea#pasteArea::placeholder { color: var(--ink-dim); }
   z-index: 10;
   pointer-events: none;
   white-space: nowrap;
-}
-
-#preview {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  border: none;
-  display: block;
-  background: white;
 }
 
 /* Modal */
@@ -591,6 +593,8 @@ textarea#pasteArea::placeholder { color: var(--ink-dim); }
 }
 .cf-submit:hover { opacity: 0.85; }
 .cf-submit:disabled { opacity: 0.3; cursor: default; }
+
+@media (max-width: 680px) {
   .panel-right { display: none; }
   .topbar-title { display: none; }
 }
@@ -627,7 +631,6 @@ textarea#pasteArea::placeholder { color: var(--ink-dim); }
     </div>
     <div class="topbar-right">
       <button class="topbar-btn" id="previewToggleBtn" onclick="togglePreview()">⛶ Forhåndsvisning</button>
-      <button class="topbar-btn" onclick="debugPreview()" style="opacity:0.5;font-size:10px">debug</button>
       <button class="topbar-btn" onclick="downloadHtml()">↓ Last ned</button>
     </div>
   </div>
@@ -651,7 +654,7 @@ textarea#pasteArea::placeholder { color: var(--ink-dim); }
     <!-- Høyre panel -->
     <div class="panel-right">
       <div class="preview-label" id="previewLabel">Forhåndsvisning</div>
-      <iframe id="preview" title="Forhåndsvisning"></iframe>
+      <iframe id="preview" src="about:blank" title="Forhåndsvisning"></iframe>
     </div>
   </div>
 </div>
@@ -985,50 +988,23 @@ function schedulePreview() {
   previewTimer = setTimeout(updatePreview, 300);
 }
 
-function debugPreview() {
-  const iframe = document.getElementById('preview');
-  const info = {
-    src: iframe.src,
-    srcdoc: iframe.srcdoc?.slice(0,50),
-    contentDocReady: !!iframe.contentDocument,
-    bodyContent: iframe.contentDocument?.body?.innerHTML?.slice(0,100) || 'ingen tilgang',
-    currentHtmlLength: currentHtml?.length,
-    domDocReady: !!domDoc,
-  };
-  console.log('Preview debug:', info);
-  alert(JSON.stringify(info, null, 2));
-}
-
 function updatePreview() {
   if (!domDoc) return;
   const serialized = '<!DOCTYPE html>\n' + domDoc.documentElement.outerHTML;
   currentHtml = serialized;
   const iframe = document.getElementById('preview');
+  writeToIframe(iframe, serialized);
+}
 
-  // Prøv document.write først
+function writeToIframe(iframe, html) {
   try {
-    const doc = iframe.contentDocument || iframe.contentWindow?.document;
-    if (doc) {
-      doc.open('text/html', 'replace');
-      doc.write(serialized);
-      doc.close();
-      return;
-    }
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
   } catch(e) {
-    console.warn('document.write feilet:', e);
+    console.error('writeToIframe feilet:', e);
   }
-
-  // Fallback: data URI
-  try {
-    const encoded = 'data:text/html;charset=utf-8,' + encodeURIComponent(serialized);
-    iframe.src = encoded;
-    return;
-  } catch(e) {
-    console.warn('data URI feilet:', e);
-  }
-
-  // Siste fallback: srcdoc
-  iframe.srcdoc = serialized;
 }
 
 // ── SØK ──
@@ -1100,6 +1076,7 @@ function doGoBack() {
   groups = [];
   changedIds.clear();
   domDoc = null;
+  previewReady = false;
   document.getElementById('fieldList').innerHTML = '';
 }
 
